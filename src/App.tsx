@@ -6,6 +6,8 @@ interface Node {
   color: string;
   centreX: number;
   centreY: number;
+  radius: number;
+  links?: Array<number>
 }
 interface Edge {
   from_node: number;
@@ -23,10 +25,9 @@ function App() {
   const [chance, setChance] = useState(0.5)
   const [radius, setRadius] = useState(20)
   const [nodes, setNodes] = useState([] as Array<Node>)
+  const [edges, setEdges] = useState([] as Array<Edge>)
 
-  const [canvasSize, setCanvasSize] = useState({width: 500, height:500})
-
-  const edges: Array<Edge> = []
+  const [canvasSize, setCanvasSize] = useState({width: 500, height:500}
 
   const min_space = 50
   const max_space = 200
@@ -42,24 +43,30 @@ function App() {
 	)
   }
 
+  /**
+   * Build the nodes out randomly but aligned to a rough grid
+   */
   const createGraph = () => {
 	const increment = (radius * 2) + min_space
 	let centreX = increment, centreY = increment, current = 0, max_height = 0, max_width = 0
 	const random_variable = max_space - min_space, theseNodes = []
+	const mod = parseInt(Math.sqrt(count).toFixed())
+	let lineY = increment
     for (let node_index = 0; node_index < count; node_index++){
       theseNodes[node_index] = {
         name: 'N'+ node_index,
         color: 'rgb('+ (Math.random() * 256).toFixed(0) + ',' + (Math.random() * 256).toFixed(0) + ',' +(Math.random() * 256).toFixed(0) + ')',
 		centreX: centreX,
-		centreY: centreY
+		centreY: centreY,
+		radius: radius + radius*Math.random()
 	  }
 	  current++
-	  if (current % 5) {
+	  if (current % mod) {
 		  centreX += increment + (random_variable * Math.random())
-		  centreY += (random_variable * Math.random())
+		  centreY = lineY+ (random_variable * Math.random())
 	  } else {
 		  centreX = increment+ (random_variable * Math.random())
-		  centreY += increment+ (random_variable * Math.random())
+		  lineY += increment
 	  }
 	  if (centreY > max_height)
 		  max_height = centreY
@@ -67,23 +74,19 @@ function App() {
 		  max_width = centreX
     } 
 	setNodes(theseNodes)
-	 setCanvasSize(oldsize => {
-	 	return {height: max_height + increment + max_space, width: max_width + increment+ max_space}
-	 })
+	 setCanvasSize({height: max_height + increment + max_space, width: max_width + increment+ max_space})
   }
+
 
   function showGraph() {
 	const canvas:HTMLCanvasElement|null = document.getElementById('graph_paper') as HTMLCanvasElement
 	const context = canvas.getContext('2d')
 	if (context){
-		console.log('Contxt! ' + canvasSize.width);
-
-		console.log(nodes.length);
 		
-		
+		const cir = 2 * Math.PI
 		for (const node of nodes) {
 			context.beginPath();
-			context.arc(node.centreX, node.centreY, radius, 0, 2 * Math.PI, false);
+			context.arc(node.centreX, node.centreY, node.radius, 0, cir, false);
 			console.log(node.centreX + "," + node.centreY);
 			
 			context.fillStyle = node.color;
@@ -92,8 +95,20 @@ function App() {
 			context.strokeStyle = '#333';
 			context.stroke();
 		}
-		console.log('drawn ' + canvasSize.height);
 		
+	}
+  }
+
+  /** Randomly connect the nodes to each other */
+  const linkNodes = () => {
+	const maxConnections = 10
+	for (const node of nodes) {
+		for (let connect = 0; connect < maxConnections; connect++){
+			if (Math.random() > .5){
+				// Add an edge from this node to another at random, we won't double connections up#
+				
+			}
+		}
 	}
   }
 
