@@ -7,7 +7,7 @@ interface Node {
   centreX: number;
   centreY: number;
   radius: number;
-  links?: Array<number>
+  links?: Map<number,number>
 }
 interface Edge {
   from_node: number;
@@ -27,7 +27,7 @@ function App() {
   const [nodes, setNodes] = useState([] as Array<Node>)
   const [edges, setEdges] = useState([] as Array<Edge>)
 
-  const [canvasSize, setCanvasSize] = useState({width: 500, height:500}
+  const [canvasSize, setCanvasSize] = useState({width: 500, height:500})
 
   const min_space = 50
   const max_space = 200
@@ -74,7 +74,7 @@ function App() {
 		  max_width = centreX
     } 
 	setNodes(theseNodes)
-	 setCanvasSize({height: max_height + increment + max_space, width: max_width + increment+ max_space})
+	setCanvasSize({height: max_height + increment + max_space, width: max_width + increment+ max_space})
   }
 
 
@@ -87,13 +87,23 @@ function App() {
 		for (const node of nodes) {
 			context.beginPath();
 			context.arc(node.centreX, node.centreY, node.radius, 0, cir, false);
-			console.log(node.centreX + "," + node.centreY);
 			
 			context.fillStyle = node.color;
 			context.fill();
 			context.lineWidth = 1;
 			context.strokeStyle = '#333';
 			context.stroke();
+
+			// Draw any links starting at the centre to the centre for the moment
+			if (node.links){
+				for (const index in node.links){
+					const to_node = parseInt(index)
+					context.lineTo(nodes[to_node].centreX,nodes[to_node].centreY)
+					context.lineWidth = 1;
+					context.strokeStyle = '#000';
+					context.stroke();
+				}
+			}
 		}
 		
 	}
@@ -102,13 +112,36 @@ function App() {
   /** Randomly connect the nodes to each other */
   const linkNodes = () => {
 	const maxConnections = 10
-	for (const node of nodes) {
+	const new_edges: Array<Edge> = []
+	const updated_nodes = []
+	for (const this_node in nodes) {
+		const from_node = parseInt(this_node)
+		const node_connections:Map<number, number> = new Map()
 		for (let connect = 0; connect < maxConnections; connect++){
 			if (Math.random() > .5){
 				// Add an edge from this node to another at random, we won't double connections up#
-				
+				const to_node = randomNode(from_node, node_connections)
+				new_edges.push({
+					from_node: from_node,
+					to_node: to_node
+				})
 			}
 		}
+		nodes[from_node].links = node_connections
+		updated_nodes[from_node] = nodes[from_node]
+	}
+	setNodes(updated_nodes)
+	setEdges(new_edges)
+  }
+
+  function randomNode(index: number, current: Map<number, number>, tries = 0):number {
+	const rand = parseInt((Math.random() * count).toFixed(0))
+	if (current.has(rand) && tries < count)
+		return randomNode(index, current)
+	else {
+		// We may weight verticies at some point
+		current.set(rand, 1)
+		return rand
 	}
   }
 
@@ -136,7 +169,7 @@ function App() {
         </div>
 		<div >Nodes {nodes.length}</div>
          <button type="button" title="Build Graph" onClick={() => createGraph()}>Build Graph</button>
-		 <button type="button" title="Show Graph" onClick={() => showGraph()}>Draw Graph</button>
+		 <button type="button" title="Add Links" onClick={() => linkNodes()}>Add Links</button>
       </div>
       <canvas id='graph_paper' height={canvasSize.height} width={canvasSize.width }>
         All the nodes on paper
