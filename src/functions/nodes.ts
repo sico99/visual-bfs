@@ -1,6 +1,5 @@
 export const randomNode = (index: number, current: Map<number, number>, count:number, tries = 0):number  => {
 	const rand = parseInt((Math.random() * count).toFixed(0))
-    console.log(rand);
     
 	if ((current.has(rand) || rand == index) &&  tries < count)
 		return randomNode(index, current,count, tries+1)
