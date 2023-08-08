@@ -1,23 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { randomNode } from './functions/nodes';
 import { Graph } from './components/graph';
 import './App.css'
-import {Node, Edge, Size} from "./types";
+import {Node, Edge} from "./types";
 
 function App() {
   // Number of nodes
-  const [count, setCount] = useState(20)
+  const [count, setCount] = useState(2)
   // Chance of connection 
   const [chance, setChance] = useState(0.1)
   const [radius, setRadius] = useState(20)
   const [nodes, setNodes] = useState([] as Array<Node>)
   const [edges, setEdges] = useState([] as Array<Edge>)
+  
+  const [move, setMove] = useState(false)
 
-  const [redraw, setRedraw] = useState(false)
   const [recreateGraph, setRecreateGraph] = useState(false)
 
-  useEffect(()=> linkNodes(),[chance])
-  useEffect(() => setRecreateGraph(r => !r), [radius, count])
 
   /**
    * Create a list of options for the % of chance of a connection
@@ -82,14 +81,17 @@ function App() {
 			<label htmlFor="radius">Radius base size</label>
 			<input type="range" name="radius" id="radius" value={radius} 
 				onInput={(event) => {
-					setRadius(parseFloat(event?.target.value))
+					const input = event.target as HTMLInputElement
+					setRadius(parseFloat(input.value))
 				}}
 				min="20" max="100"
 			/>
         </div>
 		<div >Radius {radius}</div>
-         <button type="button" title="Build Graph" onClick={() => setRecreateGraph(true)}>Build Graph</button>
+         <button type="button" title="Build Graph" onClick={() => setRecreateGraph(r => !r)}>Build Graph</button>
 		 <button type="button" title="Add Links" onClick={() => linkNodes()}>Add Links</button>
+		 <button type="button" title="Move nodes" onClick={() => setMove(m => !m)}>Move</button>
+
       </div>
 	  <Graph 
 	  		nodes={nodes} 
@@ -98,8 +100,10 @@ function App() {
 			radiusSeed={radius}
 
 			setNodes={setNodes}
-			redraw={redraw}
-			recreateGraph={recreateGraph}/>
+			recreateGraph={recreateGraph}
+			move={move}
+			
+			/>
     </>
   )
 }
