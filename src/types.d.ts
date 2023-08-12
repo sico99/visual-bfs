@@ -37,3 +37,13 @@ export interface Node {
     movingNode: Node;
     vector: Vector;
   }
+  
+  export interface NodeVector {
+      node: Node;
+      vector: Vector
+  }
+  export interface NodeVectorAmplitude {
+    node: Node;
+    vector: Vector;
+    amplitude: number
+  }

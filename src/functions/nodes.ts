@@ -1,9 +1,37 @@
-import { Node, Size, Vector, NodePair, Edge } from "../types"
+import { Node, Size, Vector, Edge, BoundingBox, NodeVector, NodeVectorAmplitude } from "../types"
 
 const cir = 2 * Math.PI
 
+/**
+ * 
+ * @param index The index in the node array of this item
+ * @param centreX The centre point horizontally of the node
+ * @param centreY The centre point vertically of the node
+ * @param radius The radius of the circle 
+ * @param color Optional colour if not specified will be random
+ * @param name the name of the node if not specified will be N and the index
+ */
+export const createNode = (index:number, centreX:number, centreY:number, radius: number, color?:string, name?:string):Node => {
+	const box: BoundingBox = {
+		left: centreX - radius,
+		top: centreY - radius,
+		right: centreX + radius,
+		bottom: centreY + radius
+	}
+	const thisNode = {
+		index: index,
+		name: (name) ? name : 'N'+ index,
+		color: color ?? 'rgb('+ (Math.random() * 256).toFixed(0) + ',' + (Math.random() * 256).toFixed(0) + ',' +(Math.random() * 256).toFixed(0) + ')',
+		centreX: centreX,
+		centreY: centreY,
+		radius: radius,
+		boundingBox: box
+	}
+	return thisNode
+}
+
 export const randomNode = (index: number, current: Map<number, number>, count:number, tries = 0):number  => {
-	const rand = parseInt((Math.random() * count).toFixed(0))
+	const rand = Math.floor(Math.random() * count)
     
 	if ((current.has(rand) || rand == index) &&  tries < count)
 		return randomNode(index, current,count, tries+1)
@@ -12,7 +40,27 @@ export const randomNode = (index: number, current: Map<number, number>, count:nu
 		current.set(rand, 1)
 		return rand
 	}
-  }
+}
+
+export const checkNodeClick = (point: Vector, nodes: Array<Node>): Node|null => {
+	for(const node of nodes) {
+		let matched = false
+		if (node.boundingBox) {
+
+			if (point.x >= node?.boundingBox?.left &&
+				point.x <= node?.boundingBox?.right)
+				matched = true
+			else 
+				continue
+			
+			if (point.y >= node?.boundingBox?.top &&
+				point.y <= node?.boundingBox?.bottom)
+				return node
+		}
+	}
+	return null
+}
+
 
   /**
    * Test if two nodes collide
@@ -25,18 +73,17 @@ export const detectCollision = (movingNode: Node, staticNode: Node):Vector  => {
 		return {x: 0, y:0}
 
 	let vector = {x:0, y:0}
-
 	
 	// Horizontally 
 	if (movingNode?.boundingBox?.left >= staticNode?.boundingBox?.left
 		&& movingNode?.boundingBox?.left <= staticNode?.boundingBox?.right)
-		vector.x = 1
+		vector.x = 1 
 	else if (movingNode?.boundingBox?.right >= staticNode?.boundingBox?.left
 		&& movingNode?.boundingBox?.right <= staticNode?.boundingBox?.right)
-		vector.x = -1
+		vector.x = -1 
 	else if (movingNode?.boundingBox?.left < staticNode?.boundingBox?.left
 		&& movingNode?.boundingBox?.right > staticNode?.boundingBox?.right)
-		vector.x = (Math.random() > .5 ? 1 : -1)
+		vector.x = -1
 
 	// We need to collide in both dimensions otherwise we have not collided
 	if (vector.x == 0)
@@ -51,60 +98,60 @@ export const detectCollision = (movingNode: Node, staticNode: Node):Vector  => {
 		vector.y = -1
 	else if (movingNode?.boundingBox?.top < staticNode?.boundingBox?.top
 		&& movingNode?.boundingBox?.bottom > staticNode?.boundingBox?.bottom)
-		vector.y = (Math.random() > .5 ? 1 : -1)
+		vector.y = -1
 
-	return vector
+	if (vector.y != 0)
+		return vector
+	else 
+		return {x:0,y:0}
 
 }
-interface NodeVector {
-	node: Node;
-	vector: Vector
-}
 
-export const moveNode = (node: Node, vector: Vector, canvasSize: Size): NodeVector => {
+
+export const moveNode = (node: Node, vector: Vector, canvasSize: Size, factor:number = 1): NodeVector => {
 	const bb = node.boundingBox
 	const newVector = {...vector}
 	if (bb) {
 		// If the update will move the box out of bounds try to preserve the movement but redirect it
 		if (bb.left + vector.x <= 0){
-			bb.left += 1
-			bb.right +=1
-			node.centreX += 1
+			bb.left += 1 *factor
+			bb.right +=1 *factor
+			node.centreX += 1 *factor
 
-			newVector.x = 1
+			newVector.x = 1*factor
 		} else if (bb.right + vector.x >= canvasSize.width) {
-			bb.left -= 1
-			bb.right -=1
-			node.centreX -= 1
+			bb.left -= 1 *factor
+			bb.right -=1*factor
+			node.centreX -= 1*factor
 
-			newVector.x = -1
+			newVector.x = -1*factor
 		} else {
-			bb.left += vector.x
-			bb.right += vector.x
-			node.centreX += vector.x
+			bb.left += vector.x*factor
+			bb.right += vector.x*factor
+			node.centreX += vector.x*factor
 
-			newVector.x = vector.x
+			newVector.x = vector.x  *factor
 			
 		}
 		if (bb.top + vector.y <= 0){
-			bb.top += 1
-			bb.bottom +=1
-			node.centreY += 1
+			bb.top += 1*factor
+			bb.bottom +=1*factor
+			node.centreY += 1*factor
 
-			newVector.y = 1
+			newVector.y = 1*factor
 		} else if (bb.bottom + vector.y >= canvasSize.height) {
-			bb.top -= 1
-			bb.bottom -=1
-			node.centreY -= 1
+			bb.top -= 1*factor
+			bb.bottom -=1*factor
+			node.centreY -= 1*factor
 
-			newVector.y = -1
+			newVector.y = -1*factor
 		} else {
 
-			bb.top += vector.y
-			bb.bottom += vector.y
-			node.centreY += vector.y
+			bb.top += vector.y*factor
+			bb.bottom += vector.y*factor
+			node.centreY += vector.y*factor
 
-			newVector.y = vector.y
+			newVector.y = vector.y*factor
 		}
 	}
 	node.boundingBox = bb
@@ -120,7 +167,7 @@ export const moveNode = (node: Node, vector: Vector, canvasSize: Size): NodeVect
  * @param canvasSize 
  * @returns 
  */
-export const renderNodes = (canvas: OffscreenCanvas, nodes: Array<Node>, edges: Array<Edge>, movingNodes: Map<number,NodePair>, canvasSize: Size ): OffscreenCanvas => {
+export const renderNodes = (canvas: OffscreenCanvas, nodes: Array<Node>, edges: Array<Edge>, movingNodes: Map<number,NodeVectorAmplitude>, canvasSize: Size ): OffscreenCanvas => {
 	
 	canvas.height = canvasSize.height
 	canvas.width = canvasSize.width
@@ -154,7 +201,13 @@ export const renderNodes = (canvas: OffscreenCanvas, nodes: Array<Node>, edges: 
 
 }
 
-export const drawNode = (context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D,node: Node): void => {
+/**
+ * Draw a single node on the context
+ * @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} context 
+ * @param {Node} node 
+ * @param {boolean} showBox 
+ */
+export const drawNode = (context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D,node: Node, showBox:boolean = false): void => {
 
 	context.beginPath();
 	context.arc(node.centreX, node.centreY, node.radius, 0, cir, false);
@@ -163,6 +216,10 @@ export const drawNode = (context: CanvasRenderingContext2D|OffscreenCanvasRender
 	context.lineWidth = 1;
 	context.strokeStyle = '#333';
 	context.strokeText(node.name, node.centreX,  node.centreY)
+	// If showing the bounding box as well add that now
+	if (showBox && node.boundingBox)
+		context.rect(node.boundingBox.left,node?.boundingBox?.top, node?.boundingBox?.right - node?.boundingBox?.left, node?.boundingBox?.bottom - node?.boundingBox?.top)
+
 	context.stroke();
 }
 

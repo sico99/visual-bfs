@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react"
-import {Node, Edge, BoundingBox, NodePair} from "../types";
+import { SyntheticEvent, useEffect, useState } from "react"
+import {Node, Edge, NodeVectorAmplitude, Vector} from "../types";
 
-import { detectCollision, drawNode, moveNode, renderNodes, invertVector} from "../functions/nodes";
+import { detectCollision, drawNode, moveNode, renderNodes, invertVector, createNode, checkNodeClick} from "../functions/nodes";
 
 interface GraphProps {
     nodes: Array<Node>;
@@ -19,8 +19,10 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
 
   const [canvasSize, setCanvasSize] = useState({width: 500, height:500})
   const [offscreenCanvas, createCanvas] = useState(new OffscreenCanvas( 500, 500))
-  const [movingNodes, setMovingNodes] = useState(new Map() as Map<number, NodePair>)
+  const [movingNodes, setMovingNodes] = useState(new Map() as Map<number, NodeVectorAmplitude>)
+  const [slectedNodes, setSelected] = useState(new Map() as Map<number, Node>)
 
+  const elasticForce = 10
 
   useEffect(() => {
 		if (nodes.length > 0){
@@ -29,12 +31,12 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
 			window.requestAnimationFrame(showGraph)
   		}
 		return 
-``	},[nodes, movingNodes, offscreenCanvas])
+``	},[nodes, movingNodes, offscreenCanvas, slectedNodes])
   useEffect(() => {
 		createGraph()
-	}, [recreateGraph])
+	}, [recreateGraph, radiusSeed])
 
-  useEffect(() => moveNodes(),[move])
+  useEffect(() => setNodes(distributeNodes(nodes)),[move])
 
   const min_space = 10
   const max_space = 200
@@ -49,34 +51,25 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
 	const mod = parseInt(Math.sqrt(count).toFixed())
 	let lineY = increment
     for (let node_index = 0; node_index < count; node_index++){
-		const radius = radiusSeed + radiusSeed*Math.random()
-		const box: BoundingBox = {
-			left: centreX - radius,
-			top: centreY - radius,
-			right: centreX + radius,
-			bottom: centreY + radius
+		const radius = radiusSeed + Math.floor(radiusSeed*Math.random())
+		const newNode = createNode(node_index,centreX, centreY, radius)
+		
+		theseNodes[node_index] = newNode
+		current++
+
+		// We align to roughly a grid
+		if (current % mod) {
+			centreX += increment + Math.floor(random_variable * Math.random())
+			centreY = lineY+ Math.floor(random_variable * Math.random())
+		} else {
+			centreX = increment+ Math.floor(random_variable * Math.random())
+			lineY += increment
 		}
-      theseNodes[node_index] = {
-		index: node_index,
-        name: 'N'+ node_index,
-        color: 'rgb('+ (Math.random() * 256).toFixed(0) + ',' + (Math.random() * 256).toFixed(0) + ',' +(Math.random() * 256).toFixed(0) + ')',
-		centreX: centreX,
-		centreY: centreY,
-		radius: radius,
-		boundingBox: box
-	  }
-	  current++
-	  if (current % mod) {
-		  centreX += increment + (random_variable * Math.random())
-		  centreY = lineY+ (random_variable * Math.random())
-	  } else {
-		  centreX = increment+ (random_variable * Math.random())
-		  lineY += increment
-	  }
-	  if (centreY > max_height)
-		  max_height = centreY
-	  if (centreX > max_width)
-		  max_width = centreX
+
+		if (centreY > max_height)
+			max_height = centreY
+		if (centreX > max_width)
+			max_width = centreX
     } 
 	
 	setNodes(distributeNodes(theseNodes))
@@ -91,75 +84,59 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
    * for each node can collide with each other after being moved away from current collision
    */
   function distributeNodes(theseNodes: Array<Node>):Array<Node> {
-	const newMoving = new Map()
+	const newMoving:Map<number,NodeVectorAmplitude> = new Map()
 	for(let index =0; index < theseNodes.length; index++) {
 		const staticNode = theseNodes[index]
+
 		for(let i =0; i < theseNodes.length; i++ ){
 			if (i != index) {
 				const movingNode = theseNodes[i]
-				const collisionVector = detectCollision(staticNode,movingNode)
+				const collisionVector = detectCollision(movingNode, staticNode)
 				if (collisionVector.x !== 0 || collisionVector.y !== 0){
-					if (!newMoving.has(movingNode.index))
-						// Add them to the moving queue 
-						newMoving.set(index,{
-								staticNode: staticNode,
-								movingNode: movingNode,
-								vector: collisionVector
-							})
+					// Move the node
+					const moved = moveNode(movingNode,collisionVector,canvasSize,elasticForce)
+					// Add them to the moving queue 
+					newMoving.set(i,{
+						node: moved.node,
+						vector: collisionVector,
+						amplitude: elasticForce})
+					theseNodes[moved.node.index] = moved.node
 					
+					const invertedVector =invertVector( collisionVector )
+					const saticMoved = moveNode(staticNode,invertedVector,canvasSize,elasticForce)
+					// Add them to the moving queue 
+					newMoving.set(index,{
+						node: saticMoved.node,
+						vector: invertedVector,
+						amplitude: elasticForce
+					})
+					theseNodes[index] = saticMoved.node
 				}
 			}
 		}
+
+		// If we are moving this node i.e. amplitude is non-zero then we do that here and keep it in the moving nodes array 
+		if (movingNodes.has(index) && !newMoving.has(index)){
+			const movingNode = movingNodes.get(index)
+			if (movingNode && movingNode.amplitude > 0) {
+				const moved = moveNode(movingNode.node,movingNode.vector,canvasSize,movingNode.amplitude)
+				newMoving.set(index,{
+					node: moved.node,
+					vector: movingNode.vector,
+					amplitude: movingNode.amplitude - 1})
+				theseNodes[index] = moved.node
+			}
+		}
 	}
-	if (newMoving.size) {
+
+	// If we have nodes moving or there were before set them now
+	if (newMoving.size||movingNodes.size ) {
+
 		setMovingNodes(newMoving)
-	}
-	return theseNodes
-  }
-
-  /**
-   * If we have nodes to move calculate their new positions, we move a small amount until there is 
-   * no collision, the nodes wil be in pairs
-   */
-  function moveNodes() {
-	const newMove = new Map(movingNodes)
-	let totalNodes = movingNodes.size
-	const newNodes = [...nodes]
-
-	console.log('Moving ' + newNodes.length);
-	
-
-	for (const [index, pair] of movingNodes) {
-		const less = pair.movingNode.index > index
-		if (!movingNodes.has(pair.movingNode.index) || less) {
-			console.log(pair.movingNode.centreX);
-			
-			const {node, vector} = moveNode(pair.movingNode, pair.vector, canvasSize)
-			pair.movingNode = node
-			pair.vector = vector 
-			console.log(pair.movingNode.centreX);
-
-			const newStatic = moveNode(pair.staticNode, invertVector(pair.vector), canvasSize)
-			pair.staticNode = newStatic.node
-
-			// If the nodes are no longer colliding we can now remove them from the list (allowing a little space)
-			const collisionVector = detectCollision(pair.staticNode, pair.movingNode)
-			if (collisionVector.x === 0 && collisionVector.y === 0){
-				newNodes[pair.staticNode.index] = pair.staticNode
-				newNodes[pair.movingNode.index] = pair.movingNode
-				newMove.delete(index)
-				totalNodes--
-			} 
-		} else if (movingNodes.has(pair.movingNode.index))
-			newMove.delete(index)
+		createCanvas(renderNodes(offscreenCanvas,theseNodes,edges,newMoving, canvasSize))
 		
 	}
-	console.log('Moving ' + newNodes.length);
-	setMovingNodes(newMove)
-	// If a node has become static we need to redraw it to the background
-	createCanvas(renderNodes(offscreenCanvas,newNodes, edges,newMove, canvasSize))
-	setNodes(newNodes)
-	
+	return theseNodes
   }
 
     /** show the graph based on the way we have set it up */
@@ -175,23 +152,47 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
 		context.drawImage(offscreenCanvas,0,0)
 
 		// Draw the moving nodes...
-		for (const [_index, pair] of movingNodes) {
-			const col = pair.movingNode.color
-			pair.movingNode.color = pair.staticNode.color
-			drawNode(context,pair.movingNode)
-			drawNode(context,pair.staticNode)
-			pair.movingNode.color = col
+		for (const [_index, node] of movingNodes) {
+			drawNode(context,node.node,true)
 		}
+
+		// Draw the moving nodes...
+		for (const [_index, node] of slectedNodes) {
+			const selectedColour = node.color
+			node.color = '#abc'
+			node.name = 'selected'
+			drawNode(context,node)
+			node.color = selectedColour
+		}
+
+		
 	}
-	 if (movingNodes.size)
-	 	moveNodes()
-	 else 
-		setNodes(distributeNodes(nodes))
+	
+	setNodes(distributeNodes(nodes))
+  }
+
+  function checkClick(event: MouseEvent) {
+	const position:Vector = {x:event.clientX, y: event.clientY}
+	const outside = (event.target as HTMLCanvasElement).getBoundingClientRect() 
+	position.x = position.x - outside.left
+	position.y = position.y - outside.top
+	const nodeClicked = checkNodeClick(position, nodes)
+	if (nodeClicked){
+		setSelected(originalNodes => {
+			const newNodes = new Map(originalNodes)
+			// If we click we toggle being selected
+			if (newNodes.has(nodeClicked.index))
+				newNodes.delete(nodeClicked.index)
+			else
+				newNodes.set(nodeClicked.index, nodeClicked)
+			return newNodes
+		})
+	}
   }
 
   return (
     <>
-      <canvas id='graph_paper' height={canvasSize.height} width={canvasSize.width }>
+      <canvas id='graph_paper' height={canvasSize.height} width={canvasSize.width } onClick={event => checkClick(event)}>
         All the nodes on paper
       </canvas>
       

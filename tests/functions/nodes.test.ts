@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import {detectCollision, randomNode, moveNode} from '../../src/functions/nodes'
+import {detectCollision, randomNode, moveNode, createNode} from '../../src/functions/nodes'
 import { Node } from '../../src/types'
 
 test('Nodes should be able to be generated at random', () => {
@@ -21,71 +21,63 @@ test('Nodes should be able to be generated at random', () => {
     
 })
 
-test('Detect a collision between two nodes', () => {
-    const node1:Node = {
-        name: 'Node 1',
-        color: 'red',
-        centreX: 1,
-        centreY: 1,
-        radius: 1,
-        boundingBox: {
-            left:0,
-            right:2,
-            top: 0,
-            bottom: 2
-        }
-    } 
+test('Node should be created correctly by create node', () => {
+    const node = createNode(1,1, 1, 1, 'red')
 
-    const node2:Node = {
-        name: 'Node 1',
-        color: 'red',
-        centreX: 2,
-        centreY: 2,
-        radius: 1,
-        boundingBox: {
-            left:1,
-            right:3,
-            top: 1,
-            bottom: 3
-        }
-    } 
+    expect(node.centreX).toBe(1)
+    expect(node.centreY).toBe(1)
+    expect(node.radius).toBe(1)
+    expect(node.index).toBe(1)
+    expect(node.color).toBe('red')
+    expect(node.name).toBe('N1')
+
+    expect(node?.boundingBox?.left).toBe(0)
+    expect(node?.boundingBox?.top).toBe(0)
+    expect(node?.boundingBox?.bottom).toBe(2)
+    expect(node?.boundingBox?.right).toBe(2)
+})
+
+test('Detect a collision between two nodes', () => {
+    let node1 = createNode(1,1, 1, 1, 'red')
+    let node2 = createNode(2,2, 2, 2, 'red')
 
     const collision = detectCollision(node2, node1)
 
     expect(collision.x).toBe(1)
     expect(collision.y).toBe(1)
 
-    // Node moves to the left then we should reverse the x
-    node1.centreX = 5
-    node1.centreY = 5
-    node1.boundingBox = {
-        left:4,
-        top: 4,
-        right: 6,
-        bottom: 6
-    }
+    // Node moves outsided of the 
+    node1 = createNode(1,6,6,1)
 
     const noCollision = detectCollision(node2, node1)
 
     expect(noCollision.x).toBe(0)
     expect(noCollision.y).toBe(0)
+
+    node2 = createNode(2,5,5,1)
+
+    const collide2 = detectCollision(node2, node1)
+
+     expect(collide2.x).toBe(-1)
+     expect(collide2.y).toBe(-1)
+     node2 = createNode(2,7,5,1)
+ 
+     const collide3 = detectCollision(node2, node1)
+ 
+      expect(collide3.x).toBe(1)
+      expect(collide3.y).toBe(-1)
+
+      node2 = createNode(2,5,7,1)
+  
+      const collide4 = detectCollision(node2, node1)
+  
+       expect(collide4.x).toBe(-1)
+       expect(collide4.y).toBe(1)
 })
 
 test('Move a node should change the mode', () => {
 
-    const node1:Node = {
-        name: 'Node 1',
-        color: 'red',
-        centreX: 1,
-        centreY: 1,
-        radius: 1,
-        boundingBox: {
-            left:0,
-            right:2,
-            top: 0,
-            bottom: 2
-        }
-    } 
+    const node1 = createNode(1,1, 1, 1)
 
     const newNode = moveNode(node1, {x:1,y:1}, {width:50, height: 50})
 

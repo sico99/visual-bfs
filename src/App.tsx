@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { randomNode } from './functions/nodes';
 import { Graph } from './components/graph';
 import './App.css'
@@ -17,6 +17,9 @@ function App() {
 
   const [recreateGraph, setRecreateGraph] = useState(false)
 
+  useEffect(() => {
+	setRecreateGraph(r => !r)
+  }, [count])
 
   /**
    * Create a list of options for the % of chance of a connection
