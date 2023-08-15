@@ -7,7 +7,7 @@ export interface Node {
   centreY: number;
   radius: number;
   links?: Map<number,number>
-  boundingBox? : BoundingBox;
+  boundingBox : BoundingBox;
 }
 
   export interface Edge {

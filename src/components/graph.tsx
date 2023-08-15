@@ -1,42 +1,51 @@
-import { SyntheticEvent, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import {Node, Edge, NodeVectorAmplitude, Vector} from "../types";
 
-import { detectCollision, drawNode, moveNode, renderNodes, invertVector, createNode, checkNodeClick} from "../functions/nodes";
+import { detectCollision, drawNode, moveNode, renderNodes, invertVector, createNode, checkNodeClick, randomNode} from "../functions/nodes";
 
 interface GraphProps {
     nodes: Array<Node>;
     edges: Array<Edge>;
     count: number;
     radiusSeed: number;
+	chance: number;
 
     recreateGraph: boolean;
-	move: boolean;
 
     setNodes(node:Array<Node>): void;
+	setEdges(edges: Array<Edge>): void
 }
 
-export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setNodes}:GraphProps) => {
+export const Graph = ({nodes, edges,count, radiusSeed, chance, recreateGraph, setNodes, setEdges}:GraphProps) => {
 
   const [canvasSize, setCanvasSize] = useState({width: 500, height:500})
   const [offscreenCanvas, createCanvas] = useState(new OffscreenCanvas( 500, 500))
   const [movingNodes, setMovingNodes] = useState(new Map() as Map<number, NodeVectorAmplitude>)
-  const [slectedNodes, setSelected] = useState(new Map() as Map<number, Node>)
+  const [selectedNodes, setSelected] = useState(new Set() as Set<number>)
 
   const elasticForce = 10
 
+  // If the nodes, moving nodes, offscreen canvas or selected nodes change redraw the graph
   useEffect(() => {
 		if (nodes.length > 0){
-			console.log('Frame');
 			
 			window.requestAnimationFrame(showGraph)
   		}
 		return 
-``	},[nodes, movingNodes, offscreenCanvas, slectedNodes])
-  useEffect(() => {
-		createGraph()
-	}, [recreateGraph, radiusSeed])
+``	},[movingNodes, offscreenCanvas, selectedNodes])
 
-  useEffect(() => setNodes(distributeNodes(nodes)),[move])
+  useEffect(() => {
+		
+		createGraph()
+	}, [recreateGraph, radiusSeed, count])
+
+	useEffect(() => {
+		console.log('Recreate Static');
+		
+
+		// Create the static context
+		createCanvas(renderNodes(offscreenCanvas,nodes,edges,movingNodes, canvasSize))
+	}, [nodes,edges])
 
   const min_space = 10
   const max_space = 200
@@ -66,18 +75,49 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
 			lineY += increment
 		}
 
-		if (centreY > max_height)
-			max_height = centreY
-		if (centreX > max_width)
-			max_width = centreX
+		if (newNode.boundingBox.bottom > max_height)
+			max_height = newNode.boundingBox.bottom
+		if (newNode.boundingBox.right > max_width)
+			max_width = newNode.boundingBox.right
     } 
 	
-	setNodes(distributeNodes(theseNodes))
-	const newSize = {height: max_height + increment + max_space, width: max_width + increment+ max_space}
+	// Now given the nodes we have start moving them and link them up
+	setNodes(
+		distributeNodes(
+			linkNodes(theseNodes)
+			)
+	)
+	const newSize = {height: max_height + max_space, width: max_width + max_space}
 	setCanvasSize(newSize)
-	// Create the static context
-	createCanvas(renderNodes(offscreenCanvas,theseNodes,edges,movingNodes, newSize))
   }
+
+
+  /** Randomly connect the nodes to each other */
+  const linkNodes = (oldNodes: Array<Node>) => {
+	const maxConnections = count * chance
+	const new_edges: Array<Edge> = []
+	const updated_nodes = [...oldNodes]
+	for (const this_node in oldNodes) {
+		const from_node = parseInt(this_node)
+		const node_connections:Map<number, number> = new Map()
+		for (let connect = 0; connect < maxConnections; connect++){
+			if (Math.random() > .5){
+				// Add an edge from this node to another at random, we won't double connections up#
+				const to_node = randomNode(from_node, node_connections, count)
+				new_edges.push({
+					from_node: from_node,
+					to_node: to_node
+				})
+			}
+		}
+		
+		updated_nodes[from_node].links = node_connections
+	}
+	
+	setEdges(new_edges)
+	return updated_nodes
+  }
+  
 
   /** 
    * Find all colliding nodes and set them in motion, we will need to do this multiple times
@@ -157,7 +197,8 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
 		}
 
 		// Draw the moving nodes...
-		for (const [_index, node] of slectedNodes) {
+		for (const index of selectedNodes) {
+			const node = nodes[index]
 			const selectedColour = node.color
 			node.color = '#abc'
 			node.name = 'selected'
@@ -171,7 +212,7 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
 	setNodes(distributeNodes(nodes))
   }
 
-  function checkClick(event: MouseEvent) {
+  function checkClick(event: React.MouseEvent<HTMLCanvasElement, MouseEvent>) {
 	const position:Vector = {x:event.clientX, y: event.clientY}
 	const outside = (event.target as HTMLCanvasElement).getBoundingClientRect() 
 	position.x = position.x - outside.left
@@ -179,12 +220,12 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
 	const nodeClicked = checkNodeClick(position, nodes)
 	if (nodeClicked){
 		setSelected(originalNodes => {
-			const newNodes = new Map(originalNodes)
+			const newNodes = new Set(originalNodes)
 			// If we click we toggle being selected
 			if (newNodes.has(nodeClicked.index))
 				newNodes.delete(nodeClicked.index)
 			else
-				newNodes.set(nodeClicked.index, nodeClicked)
+				newNodes.add(nodeClicked.index)
 			return newNodes
 		})
 	}
@@ -192,7 +233,12 @@ export const Graph = ({nodes, edges,count, radiusSeed,  recreateGraph,move, setN
 
   return (
     <>
-      <canvas id='graph_paper' height={canvasSize.height} width={canvasSize.width } onClick={event => checkClick(event)}>
+      <canvas 
+	  		className="m-auto border shadow-lg" 
+			id='graph_paper' 
+			height={canvasSize.height} 
+			width={canvasSize.width } 
+			onClick={event => checkClick(event)}>
         All the nodes on paper
       </canvas>
       
