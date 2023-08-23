@@ -1,4 +1,5 @@
 import { Node, Size, Vector, Edge, BoundingBox, NodeVector, NodeVectorAmplitude } from "../types"
+import { randomLetter } from "./util"
 
 const cir = 2 * Math.PI
 
@@ -20,8 +21,8 @@ export const createNode = (index:number, centreX:number, centreY:number, radius:
 	}
 	const thisNode = {
 		index: index,
-		name: (name) ? name : 'N'+ index,
-		color: color ?? 'rgb('+ (Math.random() * 256).toFixed(0) + ',' + (Math.random() * 256).toFixed(0) + ',' +(Math.random() * 256).toFixed(0) + ')',
+		name: (name) ? name : randomLetter(),
+		color: color ?? 'rgb('+ (Math.random() * 128).toFixed(0) + ',' + (Math.random() * 128).toFixed(0) + ',' +(Math.random() * 128).toFixed(0) + ')',
 		centreX: centreX,
 		centreY: centreY,
 		radius: radius,
@@ -42,6 +43,12 @@ export const randomNode = (index: number, current: Map<number, number>, count:nu
 	}
 }
 
+/**
+ * 
+ * @param point The position on the canvas which has been clicked
+ * @param nodes The array of nodes to check
+ * @returns A node if matched to click location or null if none found
+ */
 export const checkNodeClick = (point: Vector, nodes: Array<Node>): Node|null => {
 	for(const node of nodes) {
 		let matched = false
@@ -62,12 +69,12 @@ export const checkNodeClick = (point: Vector, nodes: Array<Node>): Node|null => 
 }
 
 
-  /**
-   * Test if two nodes collide
-   * @param {Node} movingNode A node to test 
-   * @param {Node} staticNode A second node to test if collided
-   * @returns {Vector} True if a collision has occurred
-   */
+/**
+ * Test if two nodes collide
+ * @param {Node} movingNode A node to test 
+ * @param {Node} staticNode A second node to test if collided
+ * @returns {Vector} True if a collision has occurred
+ */
 export const detectCollision = (movingNode: Node, staticNode: Node):Vector  => {
 	if (movingNode.boundingBox === undefined || staticNode.boundingBox === undefined)
 		return {x: 0, y:0}
@@ -107,7 +114,14 @@ export const detectCollision = (movingNode: Node, staticNode: Node):Vector  => {
 
 }
 
-
+/**
+ * Move a node by the amount specified bouncing back off the edges of the canvas
+ * @param node The node to check
+ * @param vector the direction we want to move the node in
+ * @param canvasSize The total area of the graph
+ * @param factor If specified multiply the movement by this factor 
+ * @returns A node with a direction of travel
+ */
 export const moveNode = (node: Node, vector: Vector, canvasSize: Size, factor:number = 1): NodeVector => {
 	const bb = node.boundingBox
 	const newVector = {...vector}
@@ -211,11 +225,20 @@ export const drawNode = (context: CanvasRenderingContext2D|OffscreenCanvasRender
 
 	context.beginPath();
 	context.arc(node.centreX, node.centreY, node.radius, 0, cir, false);
+
+	shadeElement(context, 5, 3, 6)
+
 	context.fillStyle = node.color;
 	context.fill();
+
+	// Turn off for the rest of the parts of the circle
+	shadeElement(context)
+
 	context.lineWidth = 1;
 	context.strokeStyle = '#333';
-	context.strokeText(node.name, node.centreX,  node.centreY)
+	context.font = node.radius + 'px bold sanserif'
+	context.fillStyle = 'white';
+	context.fillText(node.name, node.centreX - node.radius/3,  node.centreY + node.radius/4)
 	// If showing the bounding box as well add that now
 	if (showBox && node.boundingBox)
 		context.rect(node.boundingBox.left,node?.boundingBox?.top, node?.boundingBox?.right - node?.boundingBox?.left, node?.boundingBox?.bottom - node?.boundingBox?.top)
@@ -223,13 +246,35 @@ export const drawNode = (context: CanvasRenderingContext2D|OffscreenCanvasRender
 	context.stroke();
 }
 
-export const drawEdge = (context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D, fromNode: Node, toNode: Node) => {
-	context.beginPath();
-	context.moveTo(fromNode.centreX, fromNode.centreY)
-	context.lineTo(toNode.centreX,toNode.centreY)
-	context.lineWidth = 1;
-	context.strokeStyle = '#abc';
-	context.stroke();
+function shadeElement(context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D, blur: number =0, x: number =0, y: number =0,color:string = '#ccc') {
+
+	context.shadowColor = color
+	context.shadowBlur = blur;
+	context.shadowOffsetX = x
+	context.shadowOffsetY = y
+}
+
+/**
+ * 
+ * @param context The canvas / offscreen canvas we are writing to
+ * @param fromNode The node to extend from
+ * @param toNode The node to go to
+ */
+export const drawEdge = 
+	(
+		context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D, 
+		fromNode: Node, 
+		toNode: Node,
+		width: number = 1,
+		colour: string = '#000'
+	) => {
+		context.beginPath();
+		context.moveTo(fromNode.centreX, fromNode.centreY)
+		context.lineTo(toNode.centreX,toNode.centreY)
+		
+		context.lineWidth = width;
+		context.strokeStyle = colour;
+		context.stroke();
 }
 
 export const invertVector = (vetor: Vector): Vector => {

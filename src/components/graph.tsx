@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import {Node, Edge, NodeVectorAmplitude, Vector} from "../types";
 
-import { detectCollision, drawNode, moveNode, renderNodes, invertVector, createNode, checkNodeClick, randomNode} from "../functions/nodes";
+import { detectCollision, drawNode, moveNode, renderNodes, invertVector, createNode, checkNodeClick, randomNode, drawEdge} from "../functions/nodes";
 
 interface GraphProps {
     nodes: Array<Node>;
@@ -24,6 +24,7 @@ export const Graph = ({nodes, edges,count, radiusSeed, chance, recreateGraph, se
   const [selectedNodes, setSelected] = useState(new Set() as Set<number>)
 
   const elasticForce = 10
+  const selectedColour = 'yellow'
 
   // If the nodes, moving nodes, offscreen canvas or selected nodes change redraw the graph
   useEffect(() => {
@@ -54,6 +55,9 @@ export const Graph = ({nodes, edges,count, radiusSeed, chance, recreateGraph, se
    * Build the nodes out randomly but aligned to a rough grid
    */
   const createGraph = () => {
+	// Clear selected nodes
+	setSelected(new Set())
+
 	const increment = (radiusSeed * 2) + min_space
 	let centreX = increment, centreY = increment, current = 0, max_height = 0, max_width = 0
 	const random_variable = max_space - min_space, theseNodes: Array<Node> = []
@@ -196,14 +200,42 @@ export const Graph = ({nodes, edges,count, radiusSeed, chance, recreateGraph, se
 			drawNode(context,node.node,true)
 		}
 
-		// Draw the moving nodes...
+		// Draw the selected nodes.
+		const rerawNodes:Set<number> = new Set()
 		for (const index of selectedNodes) {
+
 			const node = nodes[index]
-			const selectedColour = node.color
-			node.color = '#abc'
-			node.name = 'selected'
-			drawNode(context,node)
+
+			// Selected links need to be emboldened 
+			if (node.links){
+				const width = 3
+				const color = 'blue'
+				for (const [to,_from] of node.links){
+					rerawNodes.add(to)
+					drawEdge(context,node,nodes[to],width, color)
+				}
+			}
+
+			const oldColour = node.color
 			node.color = selectedColour
+			drawNode(context,node)
+			node.color = oldColour
+
+		}
+
+		// Reraw the painted nodes
+		for (const nid of rerawNodes){
+			// Nodes can be linked we need to keep those selected the same colour
+			const node =nodes[nid]
+			if (selectedNodes.has(nid)){
+
+				const oldColour = node.color
+				node.color = selectedColour
+				drawNode(context,node)
+				node.color = oldColour
+				
+			} else
+				drawNode(context,node)
 		}
 
 		
