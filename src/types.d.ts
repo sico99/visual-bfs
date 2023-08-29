@@ -13,6 +13,9 @@ export interface Node {
   export interface Edge {
     from_node: number;
     to_node: number;
+    angle?:number;
+    endX?:number;
+    endY?:number;
   }
 
   export interface Size {

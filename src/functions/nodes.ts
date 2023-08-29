@@ -31,6 +31,14 @@ export const createNode = (index:number, centreX:number, centreY:number, radius:
 	return thisNode
 }
 
+/**
+ * Return a node at random so we can link nodes 
+ * @param index The index of the node in the current map
+ * @param current The current set of links, from this node
+ * @param count The total number of nodes
+ * @param tries Because we are recursively trying we need a counter to stop us looping indefinitely
+ * @returns a randomg index of a node not currently connected or a random number if we have exceeded the tries
+ */
 export const randomNode = (index: number, current: Map<number, number>, count:number, tries = 0):number  => {
 	const rand = Math.floor(Math.random() * count)
     
@@ -202,13 +210,13 @@ export const renderNodes = (canvas: OffscreenCanvas, nodes: Array<Node>, edges: 
 				}
 			}
 		}
-			
 		for (const index in nodes) {
 			if (!movingNodes.has(parseInt(index))) {
 				const node = nodes[index]
 				drawNode(context, node)
 			}
 		}
+			
 	}
 	
 	return canvas
@@ -270,13 +278,64 @@ export const drawEdge =
 	) => {
 		context.beginPath();
 		context.moveTo(fromNode.centreX, fromNode.centreY)
-		context.lineTo(toNode.centreX,toNode.centreY)
+
+		// work out the angle that the line makes with the end node
+		const oposite = toNode.centreY - fromNode.centreY
+		const adjacent = toNode.centreX - fromNode.centreX
+
+		let angle = Math.atan(Math.abs(oposite / adjacent))
+
+		//const hypotinuse = Math.sqrt( Math.pow(oposite,2) + Math.pow(adjacent,2) )
+
+		// Now we have the angle we can work out the point on the circle we want
+		const y =Math.sign(oposite) * Math.sin(angle) * toNode.radius
+		const x =Math.sign(adjacent) * Math.cos(angle) * toNode.radius
+
+
+		context.lineTo(toNode.centreX ,toNode.centreY)
 		
+
 		context.lineWidth = width;
 		context.strokeStyle = colour;
 		context.stroke();
+		
+		angle = (Math.sign(adjacent) * Math.sign(oposite) * angle) - ( Math.sign(adjacent) * Math.PI * .5)
+		drawTriangle(context,10,angle,toNode.centreX - x, toNode.centreY-y)
 }
 
+
+function drawTriangle(	context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D, length:number,angleR:number, x:number, y:number) {
+	context.beginPath()
+	//const angleR = angle * 
+	context.moveTo(x, y)
+	
+	const pX1 = -length/2
+	const pX2 =  length/2
+	const pY  = -length
+	
+	const cosA = Math.cos(angleR)
+	const sinA = Math.sin(angleR)
+	
+	const pX1r = (pX1 * cosA) - (pY * sinA) 
+	const pY1r = (pY * cosA) + (pX1 * sinA) 
+	
+	const pX2r = (pX2 * cosA) - (pY * sinA) 
+	const pY2r = (pY * cosA) + (pX2 * sinA) 
+	
+	context.lineTo(x+pX1r,y+ pY1r)
+	context.lineTo(x+pX2r,y+ pY2r)
+	
+	context.fillStyle = 'black'
+	context.fill()
+	//ctx.stroke()
+  }
+  
+
+/**
+ * Take a vector (x,y) and invert the directon of each component
+ * @param vetor The vector to inver
+ * @returns An inverted vectpr
+ */
 export const invertVector = (vetor: Vector): Vector => {
 	return {x: vetor.x * -1, y: vetor.y * -1}
 }
