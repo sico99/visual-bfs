@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import {Node, Edge, NodeVectorAmplitude, Vector} from "../types";
 
-import { detectCollision, drawNode, moveNode, renderNodes, invertVector, createNode, checkNodeClick, randomNode, drawEdge} from "../functions/nodes";
+import { detectCollision, drawNode, moveNode, renderNodes, invertVector, createNode, checkNodeClick, randomNode, drawEdge, nodeEdgeCollision} from "../functions/nodes";
 
 interface GraphProps {
     nodes: Array<Node>;
@@ -25,6 +25,7 @@ export const Graph = ({nodes, edges,count, radiusSeed, chance, recreateGraph, se
 
   const elasticForce = 10
   const selectedColour = 'yellow'
+  const selectedTextColour = 'black'
 
   // If the nodes, moving nodes, offscreen canvas or selected nodes change redraw the graph
   useEffect(() => {
@@ -170,6 +171,27 @@ export const Graph = ({nodes, edges,count, radiusSeed, chance, recreateGraph, se
 					amplitude: movingNode.amplitude - 1})
 				theseNodes[index] = moved.node
 			}
+		} 
+		// Finally see if this is touching any links, we need to start it moving if so 
+		 if (!movingNodes.has(index) && !newMoving.has(index)){
+			edges.forEach(edge => {
+				// Ignore own edges
+				if (edge.from_node === index || edge.to_node === index)
+					return
+				const fromNode = nodes[edge.from_node]
+				const toNode = nodes[edge.to_node]
+				const touches = nodeEdgeCollision(fromNode.centreX, fromNode.centreY,toNode.centreX,toNode.centreY, staticNode.centreX, staticNode.centreY, staticNode.radius)
+				if (touches !== false ) {
+					// Start the node moving
+						
+					const moved = moveNode(staticNode,touches as Vector,canvasSize,4)
+					newMoving.set(index,{
+						node: moved.node,
+						vector: moved.vector,
+						amplitude: 3})
+					theseNodes[index] = moved.node
+				}
+			})
 		}
 	}
 
@@ -197,7 +219,7 @@ export const Graph = ({nodes, edges,count, radiusSeed, chance, recreateGraph, se
 
 		// Draw the moving nodes...
 		for (const [_index, node] of movingNodes) {
-			drawNode(context,node.node,true)
+			drawNode(context,node.node)
 		}
 
 		// Draw the selected nodes.
@@ -218,7 +240,7 @@ export const Graph = ({nodes, edges,count, radiusSeed, chance, recreateGraph, se
 
 			const oldColour = node.color
 			node.color = selectedColour
-			drawNode(context,node)
+			drawNode(context,node,false, selectedTextColour)
 			node.color = oldColour
 
 		}
@@ -231,7 +253,7 @@ export const Graph = ({nodes, edges,count, radiusSeed, chance, recreateGraph, se
 
 				const oldColour = node.color
 				node.color = selectedColour
-				drawNode(context,node)
+				drawNode(context,node, false, selectedTextColour)
 				node.color = oldColour
 				
 			} else

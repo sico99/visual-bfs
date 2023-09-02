@@ -76,6 +76,45 @@ export const checkNodeClick = (point: Vector, nodes: Array<Node>): Node|null => 
 	return null
 }
 
+/**
+ * Check if line going from x1,y1 to x2,y2 is collided with by node with centre cx,cy and radius r
+ * @param x1 Line starting x coordinate
+ * @param x2 Line finishing x coordinate
+ * @param y1 Line starting y coordinate
+ * @param y2 Line finishing y coordinate
+ * @param cx Node centre x coordinate
+ * @param cy Node centre y coordinate
+ * @param r Node radius
+ * @returns {vector|boolean} Vector with the oposite direction if there is a collision false if not
+ */
+export const nodeEdgeCollision = (x1:number,x2:number,y1:number,y2:number,cx:number,cy:number, r:number):boolean|Vector => {
+	const xDiff = (x2-x1)
+	const yDiff = (y2-y1)
+	const m = xDiff != 0 && yDiff != 0? yDiff / xDiff : 0
+
+	// if either line is horizontal or vertical we do a simpler calculation
+	if (xDiff == 0){
+		const xDist = (x1-cx)
+	  if(Math.abs(xDist) <= r)
+		return {x: -1*Math.sign(xDist), y:0}
+	} else if (yDiff == 0){
+		
+	  const yDist = (y1-cy)
+	  if(Math.abs(yDist) <= r)
+		return {x: 0, y:-1*Math.sign(yDist)}
+	}
+	
+	// Otherwise we need to determine if there is a point on the line that is within or on the circumference
+	const b = y1 - (m * x1)
+	const centreY1 = Math.abs((m * cx) + b)
+	const centreX1 = Math.abs((b - cy )/m)
+	if (Math.abs(centreY1 - cy) <= r || Math.abs(centreX1 - cx) <= r)
+		return {x:-1*Math.sign(centreX1 - cx), y:-1*Math.sign(centreY1 - cy)}
+	else
+		return false
+  }
+  
+
 
 /**
  * Test if two nodes collide
@@ -229,7 +268,11 @@ export const renderNodes = (canvas: OffscreenCanvas, nodes: Array<Node>, edges: 
  * @param {Node} node 
  * @param {boolean} showBox 
  */
-export const drawNode = (context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D,node: Node, showBox:boolean = false): void => {
+export const drawNode = (
+	context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D,
+	node: Node, 
+	showBox:boolean = false,
+	textColour: string ='white'): void => {
 
 	context.beginPath();
 	context.arc(node.centreX, node.centreY, node.radius, 0, cir, false);
@@ -245,7 +288,7 @@ export const drawNode = (context: CanvasRenderingContext2D|OffscreenCanvasRender
 	context.lineWidth = 1;
 	context.strokeStyle = '#333';
 	context.font = node.radius + 'px bold sanserif'
-	context.fillStyle = 'white';
+	context.fillStyle = textColour;
 	context.fillText(node.name, node.centreX - node.radius/3,  node.centreY + node.radius/4)
 	// If showing the bounding box as well add that now
 	if (showBox && node.boundingBox)
@@ -285,28 +328,25 @@ export const drawEdge =
 
 		let angle = Math.atan(Math.abs(oposite / adjacent))
 
-		//const hypotinuse = Math.sqrt( Math.pow(oposite,2) + Math.pow(adjacent,2) )
-
 		// Now we have the angle we can work out the point on the circle we want
 		const y =Math.sign(oposite) * Math.sin(angle) * toNode.radius
 		const x =Math.sign(adjacent) * Math.cos(angle) * toNode.radius
 
-
 		context.lineTo(toNode.centreX ,toNode.centreY)
-		
 
 		context.lineWidth = width;
 		context.strokeStyle = colour;
 		context.stroke();
 		
 		angle = (Math.sign(adjacent) * Math.sign(oposite) * angle) - ( Math.sign(adjacent) * Math.PI * .5)
-		drawTriangle(context,10,angle,toNode.centreX - x, toNode.centreY-y)
+		drawTriangle(context,10,angle,toNode.centreX - x, toNode.centreY-y, colour )
 }
 
 
-function drawTriangle(	context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D, length:number,angleR:number, x:number, y:number) {
+function drawTriangle(	context: CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D, 
+	length:number,angleR:number, x:number, y:number, fill: string = 'black') {
 	context.beginPath()
-	//const angleR = angle * 
+	
 	context.moveTo(x, y)
 	
 	const pX1 = -length/2
@@ -325,7 +365,7 @@ function drawTriangle(	context: CanvasRenderingContext2D|OffscreenCanvasRenderin
 	context.lineTo(x+pX1r,y+ pY1r)
 	context.lineTo(x+pX2r,y+ pY2r)
 	
-	context.fillStyle = 'black'
+	context.fillStyle = fill
 	context.fill()
 	//ctx.stroke()
   }

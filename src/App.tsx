@@ -5,6 +5,8 @@ import { Graph } from './components/graph';
 import { Navbar } from './components/navbar';
 import { MainMenu } from './components/mainMenu';
 
+import { randomWord as getRandomWord, getDefinition } from './functions/util';
+
 import {Node, Edge} from "./types";
 
 function App() {
@@ -22,6 +24,17 @@ function App() {
   // Show and hide graph and menu
   const [showMenu, setShowMenu] = useState(false) 
   const [recreateGraph, setRecreateGraph] = useState(false)
+
+  const [randomWord, setRandomWord] = useState('')
+
+  useEffect(() => {
+	getRandomWord()
+		.then(word => {
+			setRandomWord(word as string)
+			getDefinition(word).then(definition => console.log(definition))
+		})
+		.catch(error => console.log(error))
+  },[])
 
   return (
     <>
@@ -43,22 +56,22 @@ function App() {
 			setChance={setChance}
 		/>
 		<div className='main-body w-9/10 m-auto'>
-      <div className="card">
-		
-      </div>
-	  <Graph 
-	  		nodes={nodes} 
-			edges={edges} 
-			count={count}
-			radiusSeed={radius}
-			chance={chance}
+			<div className="card">
+				<Graph 
+					nodes={nodes} 
+					edges={edges} 
+					count={count}
+					radiusSeed={radius}
+					chance={chance}
 
-			setNodes={setNodes}
-			setEdges={setEdges}
-			recreateGraph={recreateGraph}
-			
-			/>
+					setNodes={setNodes}
+					setEdges={setEdges}
+					recreateGraph={recreateGraph}
+					
+					/>
 			</div>
+	  		{randomWord}
+		</div>
     </>
   )
 }
